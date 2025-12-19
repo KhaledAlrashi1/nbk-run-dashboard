@@ -8,13 +8,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-
 # =========================
 # Reduce noisy warnings in Streamlit logs (optional)
 # =========================
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
-
 
 # =========================
 # Page config + Bright theme
@@ -32,19 +30,18 @@ st.markdown(
 /* Base */
 .stApp { background: #f6f9ff; }
 h1, h2, h3, h4, h5, h6, p, li, div { color: #0f172a; }
-:root{ --primary-color: #2563eb; } /* bright blue accent */
 
-/* smoother overall scale */
+/* Smooth overall scale */
 html, body { font-size: 18px; }
 
-/* section titles */
+/* Section titles */
 h2 { font-size: 2.2rem !important; }
 h3 { font-size: 1.6rem !important; }
 
-/* tabs */
+/* Tabs */
 .stTabs [data-baseweb="tab"] { font-size: 1.05rem !important; padding: 10px 14px !important; }
 
-/* captions + secondary text */
+/* Captions + secondary text */
 .stCaption, [data-testid="stMarkdownContainer"] p { font-size: 1.02rem; }
 
 /* KPI cards */
@@ -57,28 +54,28 @@ h3 { font-size: 1.6rem !important; }
 }
 .kpi-label{ font-size: 0.90rem; color: #334155; }
 .kpi-value{ font-size: 2.10rem; font-weight: 780; margin-top: 2px; }
-.kpi-sub{ font-size: 0.95rem; color: #2563eb; margin-top: 8px; }
+.kpi-sub{ font-size: 0.98rem; color: #2563eb; margin-top: 10px; }
 .kpi-sub-muted{ font-size: 0.90rem; color: #64748b; margin-top: 4px; }
 
 /* Softer plotly modebar */
 .modebar{ opacity: 0.18 !important; }
 .modebar:hover{ opacity: 1 !important; }
 
-/* Clean hero banner (single bright blue) */
+/* HERO (single cyan) */
 .hero {
   border-radius: 18px;
   padding: 18px 18px;
   color: white;
   background: #06b6d4; /* cyan */
   border: 1px solid rgba(255,255,255,0.22);
-  box-shadow: 0 10px 30px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 10px 30px rgba(2, 132, 199, 0.18);
 }
-.hero-title { font-size: 1.05rem; opacity: 0.95; font-weight: 700; }
-.hero-big { font-size: 2.3rem; font-weight: 850; margin-top: 6px; line-height: 1.05; }
+.hero-title { font-size: 1.05rem; opacity: 0.95; font-weight: 750; }
+.hero-big { font-size: 2.6rem; font-weight: 900; margin-top: 8px; line-height: 1.05; }
 .hero-sub { margin-top: 10px; font-size: 1.05rem; opacity: 0.95; }
 
-/* small chips inside hero */
-.hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+/* Hero chips */
+.hero-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px; }
 .hero-chip {
   background: rgba(255,255,255,0.14);
   border: 1px solid rgba(255,255,255,0.18);
@@ -86,7 +83,7 @@ h3 { font-size: 1.6rem !important; }
   padding: 12px 14px;
 }
 .hero-chip-label { font-size: 0.95rem; opacity: 0.95; }
-.hero-chip-value { font-size: 1.55rem; font-weight: 850; margin-top: 4px; }
+.hero-chip-value { font-size: 1.35rem; font-weight: 900; margin-top: 6px; }
 
 /* Context blocks */
 div[data-testid="stAlert"]{
@@ -101,7 +98,6 @@ PLOTLY_TEMPLATE = "plotly_white"
 
 # Blue + Green palette (no red)
 GENDER_COLORS = {"Female": "#2563eb", "Male": "#22c55e"}
-
 
 # =========================
 # Plot styling helpers
@@ -121,7 +117,6 @@ def apply_modern_hover(fig):
 
 
 def fix_year_axis(fig, years_sorted):
-    """Force x-axis to show only whole years (no 2024.5)."""
     years_sorted = [int(y) for y in years_sorted if pd.notna(y)]
     fig.update_xaxes(tickmode="array", tickvals=years_sorted, ticktext=[str(y) for y in years_sorted])
     return fig
@@ -161,7 +156,6 @@ def parse_time_to_seconds(x) -> float:
     s = "".join(ch for ch in s if (ch.isdigit() or ch == ":"))
     if not s:
         return np.nan
-
     parts = s.split(":")
     try:
         if len(parts) == 3:
@@ -278,15 +272,8 @@ def fmt_int(x) -> str:
         return "—"
 
 
-def fmt_pp(pp: float) -> str:
-    if pp is None or (isinstance(pp, float) and np.isnan(pp)):
-        return "—"
-    sign = "+" if pp >= 0 else ""
-    return f"{sign}{pp:.1f} pp"
-
-
 def dedupe_finishers(frame: pd.DataFrame) -> pd.DataFrame:
-    """Participants = unique (year, contest, division, bib)."""
+    """Finishers = unique (year, contest, division, bib)."""
     x = frame.copy()
     if x["bib"].notna().any():
         x = x.dropna(subset=["bib"])
@@ -330,6 +317,31 @@ def bucket_open_contest(series: pd.Series, keep_11k: bool) -> pd.Series:
     return s.replace({"11K": "10K"})
 
 
+def fmt_change_count(prev: int, curr: int, prev_year: int) -> str:
+    """Human-friendly change text for counts."""
+    if prev is None or prev == 0:
+        return f"In {prev_year} there was no baseline to compare."
+    delta = curr - prev
+    pct = (delta / prev) * 100 if prev else np.nan
+    if delta > 0:
+        return f"Up by {fmt_int(delta)} (+{pct:.1f}%) vs {prev_year}"
+    if delta < 0:
+        return f"Down by {fmt_int(abs(delta))} ({pct:.1f}%) vs {prev_year}"
+    return f"No change vs {prev_year}"
+
+
+def fmt_change_share(prev_share: float, curr_share: float, prev_year: int) -> str:
+    """Human-friendly change text for shares (percentage points)."""
+    if prev_share is None or curr_share is None or np.isnan(prev_share) or np.isnan(curr_share):
+        return f"Not enough data to compare vs {prev_year}"
+    prev_pct = prev_share * 100
+    curr_pct = curr_share * 100
+    pp = curr_pct - prev_pct
+    direction = "up" if pp > 0 else "down" if pp < 0 else "unchanged"
+    pp_abs = abs(pp)
+    return f"{prev_pct:.1f}% → {curr_pct:.1f}% ({direction} {pp_abs:.1f} percentage points) vs {prev_year}"
+
+
 # =========================
 # Load
 # =========================
@@ -347,13 +359,11 @@ years_all = sorted([int(y) for y in df["event_year"].dropna().unique().tolist()]
 y_latest = max(years_all) if years_all else None
 y_prev = years_all[-2] if len(years_all) >= 2 else None
 
-
 # =========================
 # Header
 # =========================
 st.title("NBK Run Dashboard")
 st.caption("For the last four annual runs.")
-
 
 # =========================
 # Split: Open / Para
@@ -375,16 +385,14 @@ para_fin = dedupe_finishers(
 
 tab_open, tab_para = st.tabs(["Open athletes", "Para-athletes"])
 
-
 # =========================
 # OPEN TAB
 # =========================
 with tab_open:
     st.subheader("Open athletes")
 
-    # --- Story banner (single cyan) ---
+    # --- Story hero (clear language) ---
     if y_latest is not None and y_prev is not None:
-        # Total finishers per year (Open) after dedupe
         fin_by_year = (
             open_fin.groupby("event_year", observed=True)
             .size()
@@ -392,33 +400,35 @@ with tab_open:
             .sort_values("event_year")
         )
 
-        latest_finishers = int(fin_by_year.loc[fin_by_year["event_year"].eq(y_latest), "Finishers"].iloc[0]) if (fin_by_year["event_year"].eq(y_latest).any()) else 0
-        prev_finishers = int(fin_by_year.loc[fin_by_year["event_year"].eq(y_prev), "Finishers"].iloc[0]) if (fin_by_year["event_year"].eq(y_prev).any()) else 0
-        delta_finishers = latest_finishers - prev_finishers
+        latest_finishers = int(fin_by_year.loc[fin_by_year["event_year"].eq(y_latest), "Finishers"].iloc[0]) if fin_by_year["event_year"].eq(y_latest).any() else 0
+        prev_finishers = int(fin_by_year.loc[fin_by_year["event_year"].eq(y_prev), "Finishers"].iloc[0]) if fin_by_year["event_year"].eq(y_prev).any() else 0
 
         is_record = (latest_finishers == fin_by_year["Finishers"].max()) if not fin_by_year.empty else False
+        # record_text = "🏆 Record year — highest Open finishers across the last four runs." if is_record else "Open finishers snapshot."
+        record_text = "🏆 Record year — highest Open finishers across the last four runs."
 
-        record_badge = "🏆 Record year" if is_record else ""
-        # record_line = "Highest number of Open race finishers across the last four runs." if is_record else "Open race finishers snapshot."
-        record_line = "Highest number of race finishers across the last four runs."
 
+        hero_chip_1_label = f"{y_prev} → {y_latest}"
+        hero_chip_1_value = f"{fmt_int(prev_finishers)} → {fmt_int(latest_finishers)}"
+
+        hero_chip_2_label = f"Compared with {y_prev}"
+        hero_chip_2_value = fmt_change_count(prev_finishers, latest_finishers, y_prev)
 
         st.markdown(
             f"""
 <div class="hero">
-  <div class="hero-title">Open athletes — {y_latest} snapshot {record_badge}</div>
+  <div class="hero-title">Open division — {y_latest} snapshot</div>
   <div class="hero-big">{fmt_int(latest_finishers)} finishers</div>
-  <div class="hero-sub">
-    {record_line}
-  </div>
+  <div class="hero-sub">{record_text}</div>
+
   <div class="hero-grid">
     <div class="hero-chip">
-      <div class="hero-chip-label">Change vs {y_prev}</div>
-      <div class="hero-chip-value">Δ {fmt_int(delta_finishers)}</div>
+      <div class="hero-chip-label">{hero_chip_1_label}</div>
+      <div class="hero-chip-value">{hero_chip_1_value}</div>
     </div>
     <div class="hero-chip">
-      <div class="hero-chip-label">What’s new</div>
-      <div class="hero-chip-value">21K in 2025</div>
+      <div class="hero-chip-label">{hero_chip_2_label}</div>
+      <div class="hero-chip-value">{hero_chip_2_value}</div>
     </div>
   </div>
 </div>
@@ -426,30 +436,43 @@ with tab_open:
             unsafe_allow_html=True,
         )
     else:
-        st.info("Not enough yearly data to compute year-over-year story tiles.")
+        st.info("Not enough yearly data to compute year-over-year insights.")
 
     st.divider()
 
-    # --- KPI cards ---
+    # --- KPI cards (make change very obvious, not shorthand) ---
     if y_latest is None or y_prev is None:
         st.info("Not enough yearly data to compute year-over-year KPIs.")
     else:
         s_latest = year_snapshot(open_fin, y_latest)
         s_prev = year_snapshot(open_fin, y_prev)
 
-        d_part = s_latest["participants"] - s_prev["participants"]
-        d_pf = (s_latest["pct_f"] - s_prev["pct_f"]) * 100 if (not np.isnan(s_latest["pct_f"]) and not np.isnan(s_prev["pct_f"])) else np.nan
-        d_pm = (s_latest["pct_m"] - s_prev["pct_m"]) * 100 if (not np.isnan(s_latest["pct_m"]) and not np.isnan(s_prev["pct_m"])) else np.nan
+        # c1, c2, c3 = st.columns(3)
+        c2, c3 = st.columns(2)
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            kpi_card(f"Participants ({y_latest})", fmt_int(s_latest["participants"]), sub=f"Δ {fmt_int(d_part)} vs {y_prev}")
+
+        # with c1:
+        #     kpi_card(
+        #         f"Finishers ({y_latest})",
+        #         fmt_int(s_latest["participants"]),
+        #         sub=fmt_change_count(int(s_prev["participants"]), int(s_latest["participants"]), y_prev),
+        #     )
+
         with c2:
             val = f"{(s_latest['pct_f']*100):.1f}%" if not np.isnan(s_latest["pct_f"]) else "—"
-            kpi_card(f"% Female ({y_latest})", val, sub=f"{fmt_pp(d_pf)} vs {y_prev}")
+            kpi_card(
+                f"Female share ({y_latest})",
+                val,
+                sub=fmt_change_share(float(s_prev["pct_f"]), float(s_latest["pct_f"]), y_prev),
+            )
+
         with c3:
             val = f"{(s_latest['pct_m']*100):.1f}%" if not np.isnan(s_latest["pct_m"]) else "—"
-            kpi_card(f"% Male ({y_latest})", val, sub=f"{fmt_pp(d_pm)} vs {y_prev}")
+            kpi_card(
+                f"Male share ({y_latest})",
+                val,
+                sub=fmt_change_share(float(s_prev["pct_m"]), float(s_latest["pct_m"]), y_prev),
+            )
 
     st.divider()
 
@@ -462,8 +485,8 @@ with tab_open:
     at_year = st.selectbox(
         "Show distributions for",
         options=(["All years"] + year_opts),
-        index=1,  # default latest year
-        help="Defaults to the most recent year so the distribution reflects 'current' participation.",
+        index=1,
+        help="Defaults to the most recent year so the distribution reflects the latest run.",
     )
 
     if at_year == "All years":
@@ -484,13 +507,14 @@ with tab_open:
     share = (
         af.groupby("Contest", observed=True)
         .size()
-        .reset_index(name="Participants")
-        .query("Participants > 0")
+        .reset_index(name="Finishers")
+        .query("Finishers > 0")
     )
-    fig_donut = px.pie(share, names="Contest", values="Participants", hole=0.55)
+
+    fig_donut = px.pie(share, names="Contest", values="Finishers", hole=0.55)
     fig_donut.update_traces(
         textinfo="percent+label",
-        hovertemplate="<b>%{label}</b><br>Participants: %{value:,}<br>Share: %{percent}<extra></extra>",
+        hovertemplate="<b>%{label}</b><br>Finishers: %{value:,}<br>Share: %{percent}<extra></extra>",
     )
     style_fig(fig_donut)
     apply_modern_hover(fig_donut)
@@ -498,32 +522,34 @@ with tab_open:
     gbar = (
         af.groupby(["Contest", "gender"], observed=True)
         .size()
-        .reset_index(name="Participants")
+        .reset_index(name="Finishers")
     )
+
     fig_bar = px.bar(
         gbar,
         x="Contest",
-        y="Participants",
+        y="Finishers",
         color="gender",
         barmode="group",
         color_discrete_map=GENDER_COLORS,
         category_orders={"Contest": contest_order_here},
     )
     fig_bar.update_traces(
-        hovertemplate="<b>%{fullData.name}</b><br>Contest: %{x}<br>Participants: %{y:,}<extra></extra>"
+        hovertemplate="<b>%{fullData.name}</b><br>Contest: %{x}<br>Finishers: %{y:,}<extra></extra>"
     )
-    fig_bar.update_layout(xaxis_title="Contest", yaxis_title="Participants")
+    fig_bar.update_layout(xaxis_title="Contest", yaxis_title="Finishers")
     style_fig(fig_bar)
     apply_modern_hover(fig_bar)
 
     with left:
         st.plotly_chart(fig_donut, width="stretch")
-        st.caption(f"Contest mix for **{at_year_label}** (Open athletes).")
+        st.caption(f"Contest mix for **{at_year_label}** (Open division).")
+
     with right:
         st.plotly_chart(fig_bar, width="stretch")
-        st.caption(f"Open participation by contest in **{at_year_label}**, split by gender.")
+        st.caption(f"Finishers by contest in **{at_year_label}**, split by gender.")
 
-    # Show context messages ONLY when "All years" is selected
+    # Context messages ONLY when "All years" selected (per your request)
     if at_year == "All years":
         st.info("Context: **11K** (seen in 2021) is grouped into **10K** in this dashboard for clearer analysis.")
         st.info("Context: **21K** was introduced in **2025** (so it won’t appear in earlier-year distributions).")
@@ -539,11 +565,15 @@ with tab_open:
     counts = (
         tmp.groupby(["event_year", "contest_bucket"], observed=True)
         .size()
-        .reset_index(name="Participants")
+        .reset_index(name="Finishers")
     )
-    totals = counts.groupby("event_year")["Participants"].sum().reset_index(name="Total")
+    totals = counts.groupby("event_year")["Finishers"].sum().reset_index(name="Total")
     share_over_time = counts.merge(totals, on="event_year", how="left")
-    share_over_time["Share"] = np.where(share_over_time["Total"] > 0, share_over_time["Participants"] / share_over_time["Total"], np.nan)
+    share_over_time["Share"] = np.where(
+        share_over_time["Total"] > 0,
+        share_over_time["Finishers"] / share_over_time["Total"],
+        np.nan,
+    )
 
     fig_share_contest = px.bar(
         share_over_time,
@@ -556,19 +586,20 @@ with tab_open:
     fig_share_contest.update_traces(
         hovertemplate="<b>%{fullData.name}</b><br>Year: %{x}<br>Share: %{y:.1%}<extra></extra>"
     )
-    fig_share_contest.update_layout(xaxis_title="Year", yaxis_title="Share of Open participants", legend_title_text="Contest")
+    fig_share_contest.update_layout(
+        xaxis_title="Year",
+        yaxis_title="Share of Open finishers",
+        legend_title_text="Contest (11K → 10K)",
+    )
     fix_year_axis(fig_share_contest, sorted(share_over_time["event_year"].dropna().unique().tolist()))
     style_fig(fig_share_contest)
     apply_modern_hover(fig_share_contest)
     st.plotly_chart(fig_share_contest, width="stretch")
 
-    st.info("Context: this chart shows **percent share** (not counts). It’s a clean way to see how the contest mix changes year-to-year.")
+    st.info("Context: This chart shows **percentage share** (not counts). It highlights how the contest mix shifts year-to-year.")
 
     st.divider()
 
-    # =========================
-    # YoY change by contest (latest vs previous)
-    # =========================
     # =========================
     # YoY change by contest (latest vs previous)
     # =========================
@@ -580,56 +611,67 @@ with tab_open:
         a = tmp[tmp["event_year"].eq(y_latest)].copy()
         b = tmp[tmp["event_year"].eq(y_prev)].copy()
 
-        a_counts = a.groupby("contest_bucket", observed=True).size().reset_index(name="Latest")
-        b_counts = b.groupby("contest_bucket", observed=True).size().reset_index(name="Prev")
+        a_counts = a.groupby("contest_bucket", observed=True).size().reset_index(name=str(y_latest))
+        b_counts = b.groupby("contest_bucket", observed=True).size().reset_index(name=str(y_prev))
 
         yoy = a_counts.merge(b_counts, on="contest_bucket", how="outer").fillna(0)
-        yoy["Δ Participants"] = yoy["Latest"] - yoy["Prev"]
+        yoy["Change"] = yoy[str(y_latest)] - yoy[str(y_prev)]
 
-        # Identify "continuing contests" (present in both years)
-        yoy["continuing"] = (yoy["Latest"] > 0) & (yoy["Prev"] > 0)
-        continuing = yoy[yoy["continuing"]].copy()
+        # continuing contests = present in both years
+        continuing = yoy[(yoy[str(y_latest)] > 0) & (yoy[str(y_prev)] > 0)].copy()
+        all_continuing_increased = bool((continuing["Change"] > 0).all()) if not continuing.empty else False
 
-        all_continuing_increased = bool((continuing["Δ Participants"] > 0).all()) if not continuing.empty else False
-        new_contests = yoy[(yoy["Latest"] > 0) & (yoy["Prev"] == 0)].copy()
+        # new contests (e.g., 21K in 2025)
+        new_contests = yoy[(yoy[str(y_latest)] > 0) & (yoy[str(y_prev)] == 0)].copy()
 
-        # Clean ordering and labels
         yoy = yoy.sort_values("contest_bucket")
-        yoy["label"] = yoy["contest_bucket"].astype(str)
+        yoy["Change_label"] = yoy["Change"].apply(lambda v: f"{v:+.0f}")
 
+        # Bar chart of YoY change
         fig_yoy = px.bar(
             yoy,
             x="contest_bucket",
-            y="Δ Participants",
+            y="Change",
+            text="Change_label",
             category_orders={"contest_bucket": OPEN_CONTESTS_BUCKETED},
         )
         fig_yoy.update_traces(
-            hovertemplate="<b>%{x}</b><br>Δ Finishers: %{y:+,}<extra></extra>"
+            textposition="outside",
+            hovertemplate="<b>%{x}</b><br>"
+                          f"{y_prev}: %{{customdata[0]:,.0f}}<br>"
+                          f"{y_latest}: %{{customdata[1]:,.0f}}<br>"
+                          "Change: %{y:+,.0f}<extra></extra>",
+            customdata=np.stack([yoy[str(y_prev)].values, yoy[str(y_latest)].values], axis=-1),
         )
         fig_yoy.update_layout(
             xaxis_title="",
-            yaxis_title="Change in finishers (2025 - 2024)",
+            yaxis_title=f"Change in finishers ({y_latest} minus {y_prev})",
         )
         style_fig(fig_yoy)
         apply_modern_hover(fig_yoy)
         st.plotly_chart(fig_yoy, width="stretch")
 
-        # Strong narrative summary
+        # Make the message explicit (your request)
         if all_continuing_increased:
             st.success(
-                f"**All continuing Open contests increased in {y_latest} vs {y_prev}.** "
-                f"Also, **21K was introduced in {y_latest}**, adding new finishers that didn’t exist last year."
+                f"**All contests that existed in {y_prev} had more Open finishers in {y_latest}.** "
+                f"Also, **21K was introduced in {y_latest}**, so it has no {y_prev} baseline."
             )
         else:
             st.info(
-                f"YoY changes are shown by contest. Note: **21K was introduced in {y_latest}** (so it has no {y_prev} baseline)."
+                f"These bars show how each contest changed from {y_prev} to {y_latest}. "
+                f"Note: **21K was introduced in {y_latest}**."
             )
 
-        if not new_contests.empty:
-            added = int(new_contests["Latest"].sum())
-            st.info(f"New in {y_latest}: **{', '.join(new_contests['contest_bucket'].astype(str).tolist())}** (+{added:,} finishers).")
+        # Show a clean table for clarity (people love this on LinkedIn)
+        view = yoy.rename(columns={"contest_bucket": "Contest"})
+        view["Contest"] = view["Contest"].astype(str)
+        view = view[["Contest", str(y_prev), str(y_latest), "Change"]]
+        st.dataframe(view, width="stretch", hide_index=True)
 
-        # st.caption("Positive bars mean that contest grew in participation vs the previous year.")
+        if not new_contests.empty:
+            new_list = ", ".join(new_contests["contest_bucket"].astype(str).tolist())
+            st.info(f"New in {y_latest}: **{new_list}**.")
 
     st.divider()
 
@@ -641,22 +683,22 @@ with tab_open:
     trend = (
         tmp.groupby(["event_year", "contest_bucket"], observed=True)
         .size()
-        .reset_index(name="Participants")
+        .reset_index(name="Finishers")
         .sort_values(["event_year", "contest_bucket"])
     )
 
     fig_trend = px.line(
         trend,
         x="event_year",
-        y="Participants",
+        y="Finishers",
         color="contest_bucket",
         markers=True,
         category_orders={"contest_bucket": OPEN_CONTESTS_BUCKETED},
     )
     fig_trend.update_traces(
-        hovertemplate="<b>%{fullData.name}</b><br>Year: %{x}<br>Participants: %{y:,}<extra></extra>"
+        hovertemplate="<b>%{fullData.name}</b><br>Year: %{x}<br>Finishers: %{y:,}<extra></extra>"
     )
-    fig_trend.update_layout(xaxis_title="Year", yaxis_title="Participants", legend_title_text="")
+    fig_trend.update_layout(xaxis_title="Year", yaxis_title="Finishers", legend_title_text="")
     fix_year_axis(fig_trend, sorted(trend["event_year"].dropna().unique().tolist()))
     style_fig(fig_trend)
     apply_modern_hover(fig_trend)
@@ -692,6 +734,7 @@ with tab_open:
 
     years_g = sorted([int(y) for y in pivot["event_year"].dropna().unique().tolist()])
 
+    # stacked counts with % in hover
     fig_counts = go.Figure()
     fig_counts.add_trace(
         go.Bar(
@@ -700,7 +743,7 @@ with tab_open:
             name="Female",
             marker_color=GENDER_COLORS["Female"],
             customdata=np.stack([pivot["Female_pct"] * 100], axis=-1),
-            hovertemplate="<b>Female</b><br>Year: %{x}<br>Participants: %{y:,}<br>Share: %{customdata[0]:.1f}%<extra></extra>",
+            hovertemplate="<b>Female</b><br>Year: %{x}<br>Finishers: %{y:,}<br>Share: %{customdata[0]:.1f}%<extra></extra>",
         )
     )
     fig_counts.add_trace(
@@ -710,24 +753,25 @@ with tab_open:
             name="Male",
             marker_color=GENDER_COLORS["Male"],
             customdata=np.stack([pivot["Male_pct"] * 100], axis=-1),
-            hovertemplate="<b>Male</b><br>Year: %{x}<br>Participants: %{y:,}<br>Share: %{customdata[0]:.1f}%<extra></extra>",
+            hovertemplate="<b>Male</b><br>Year: %{x}<br>Finishers: %{y:,}<br>Share: %{customdata[0]:.1f}%<extra></extra>",
         )
     )
-    fig_counts.update_layout(barmode="stack", xaxis_title="Year", yaxis_title="Participants", legend_title_text="Gender")
+    fig_counts.update_layout(barmode="stack", xaxis_title="Year", yaxis_title="Finishers", legend_title_text="Gender")
     fix_year_axis(fig_counts, years_g)
     style_fig(fig_counts)
     apply_modern_hover(fig_counts)
     st.plotly_chart(fig_counts, width="stretch")
-    st.caption("Hover any bar segment to see both **count** and **percentage share**.")
+    st.caption("Hover any bar segment to see both **finishers** and **share (%)**.")
 
+    # share lines: Female + Male
     fig_share = go.Figure()
     fig_share.add_trace(
         go.Scatter(
             x=pivot["event_year"],
             y=pivot["Female_pct"] * 100,
             mode="lines+markers",
-            name="% Female",
-            hovertemplate="<b>% Female</b><br>Year: %{x}<br>Share: %{y:.1f}%<extra></extra>",
+            name="Female share",
+            hovertemplate="<b>Female share</b><br>Year: %{x}<br>Share: %{y:.1f}%<extra></extra>",
             line=dict(color=GENDER_COLORS["Female"]),
         )
     )
@@ -736,8 +780,8 @@ with tab_open:
             x=pivot["event_year"],
             y=pivot["Male_pct"] * 100,
             mode="lines+markers",
-            name="% Male",
-            hovertemplate="<b>% Male</b><br>Year: %{x}<br>Share: %{y:.1f}%<extra></extra>",
+            name="Male share",
+            hovertemplate="<b>Male share</b><br>Year: %{x}<br>Share: %{y:.1f}%<extra></extra>",
             line=dict(color=GENDER_COLORS["Male"]),
         )
     )
@@ -750,9 +794,9 @@ with tab_open:
     st.divider()
 
     # =========================
-    # NEW: Gender share by contest (latest vs previous)
+    # Gender share by contest (latest vs previous)
     # =========================
-    st.subheader(f"Gender share by contest ({y_latest} vs {y_prev})")
+    st.subheader(f"Female share by contest ({y_latest} vs {y_prev})")
 
     if y_latest is None or y_prev is None:
         st.info("Not enough yearly data to compute this view.")
@@ -774,10 +818,9 @@ with tab_open:
         s_a = contest_gender_share(open_fin, y_latest)
         s_b = contest_gender_share(open_fin, y_prev)
         s = pd.concat([s_a, s_b], ignore_index=True)
-
-        # Keep only Female% (Male is 1-Female, but we can show both if you want later)
         s_f = s[s["gender"].eq("Female")].copy()
 
+        year_colors = {str(y_prev): "#94a3b8", str(y_latest): "#2563eb"}  # gray vs blue
         fig_gcs = px.bar(
             s_f,
             x="contest_bucket",
@@ -785,103 +828,15 @@ with tab_open:
             color="year",
             barmode="group",
             category_orders={"contest_bucket": OPEN_CONTESTS_BUCKETED},
+            color_discrete_map=year_colors,
         )
         fig_gcs.update_traces(
-            hovertemplate="<b>% Female</b><br>Contest: %{x}<br>Share: %{y:.1%}<extra></extra>"
+            hovertemplate="<b>Female share</b><br>Contest: %{x}<br>Share: %{y:.1%}<extra></extra>"
         )
-        fig_gcs.update_layout(
-            xaxis_title="",
-            yaxis_title="Female share",
-            legend_title_text="Year",
-        )
+        fig_gcs.update_layout(xaxis_title="", yaxis_title="Female share", legend_title_text="Year")
         style_fig(fig_gcs)
         apply_modern_hover(fig_gcs)
         st.plotly_chart(fig_gcs, width="stretch")
-        # st.caption("This makes it easy to see whether a specific distance became more/less balanced vs last year.")
-
-    st.divider()
-
-    # =========================
-    # NEW: Performance highlights (simple, not pace)
-    # =========================
-    st.subheader("Performance highlights (simple)")
-
-    st.info(
-        "Context: this section uses **finish time (net time)**, but keeps it easy: "
-        "**typical runner (median)** vs **front pack (median of top 10 finishers)**."
-    )
-
-    perf = open_fin[open_fin["net_seconds"].notna()].copy()
-    if perf.empty:
-        st.info("No finish-time data available for performance highlights.")
-    else:
-        perf = perf.assign(Contest=bucket_open_contest(perf["contest"], keep_11k=False))
-
-        pick_default = "5K" if "5K" in OPEN_CONTESTS_BUCKETED else OPEN_CONTESTS_BUCKETED[0]
-        pick = st.selectbox(
-            "Pick a contest",
-            options=OPEN_CONTESTS_BUCKETED,
-            index=OPEN_CONTESTS_BUCKETED.index(pick_default),
-            help="Shows how the typical finisher and the front pack changed over time.",
-        )
-
-        p = perf[perf["Contest"].eq(pick)].copy()
-        if p.empty:
-            st.info("No rows for this contest after grouping.")
-        else:
-            rows = []
-            for y in sorted([int(v) for v in p["event_year"].dropna().unique().tolist()]):
-                py = p[p["event_year"].eq(y)].copy()
-                med = float(np.nanmedian(py["net_seconds"].values)) if py["net_seconds"].notna().any() else np.nan
-                top10 = py.nsmallest(10, "net_seconds")
-                top10_med = float(np.nanmedian(top10["net_seconds"].values)) if not top10.empty else np.nan
-                rows.append({"Year": y, "Median": med, "Top10_median": top10_med})
-
-            tt = pd.DataFrame(rows).sort_values("Year")
-            years_tt = sorted(tt["Year"].unique().tolist())
-
-            fig_perf = go.Figure()
-            fig_perf.add_trace(
-                go.Scatter(
-                    x=tt["Year"],
-                    y=tt["Median"],
-                    mode="lines+markers",
-                    name="Typical (median)",
-                    hovertemplate="<b>Typical</b><br>Year: %{x}<br>Time: %{customdata}<extra></extra>",
-                    customdata=[seconds_to_hhmmss(v) for v in tt["Median"]],
-                    line=dict(color="#2563eb"),
-                )
-            )
-            fig_perf.add_trace(
-                go.Scatter(
-                    x=tt["Year"],
-                    y=tt["Top10_median"],
-                    mode="lines+markers",
-                    name="Front pack (top 10 median)",
-                    hovertemplate="<b>Front pack</b><br>Year: %{x}<br>Time: %{customdata}<extra></extra>",
-                    customdata=[seconds_to_hhmmss(v) for v in tt["Top10_median"]],
-                    line=dict(color="#22c55e"),
-                )
-            )
-            fig_perf.update_layout(xaxis_title="Year", yaxis_title="Finish time (seconds)", legend_title_text="")
-            fix_year_axis(fig_perf, years_tt)
-            style_fig(fig_perf)
-            apply_modern_hover(fig_perf)
-            st.plotly_chart(fig_perf, width="stretch")
-            st.caption("Green is faster if it’s lower. This keeps performance readable for non-runners.")
-
-            # Spotlight: latest year finishers table
-            if y_latest is not None:
-                spot = p[p["event_year"].eq(y_latest)].copy()
-                spot = spot[spot["net_seconds"].notna()].sort_values("net_seconds").head(10)
-                if not spot.empty:
-                    spot = spot.assign(net_time_clean=spot["net_seconds"].apply(seconds_to_hhmmss))
-                    st.subheader(f"Spotlight: top finishers in {pick} ({y_latest})")
-                    st.dataframe(
-                        spot[["gender", "bib", "name", "net_time_clean"]].rename(columns={"net_time_clean": "net_time"}),
-                        width="stretch",
-                    )
-
 
 # =========================
 # PARA TAB
@@ -895,27 +850,24 @@ with tab_para:
     else:
         para_fin_2425 = para_fin[para_fin["event_year"].ge(2024)].copy()
 
-        # --- Clean blue banner for para story ---
         if 2024 in para_years and 2025 in para_years:
             s24 = year_snapshot(para_fin_2425, 2024)
             s25 = year_snapshot(para_fin_2425, 2025)
 
-            d_part = s25["participants"] - s24["participants"]
-            growth = (d_part / s24["participants"] * 100) if s24["participants"] else np.nan
-
             st.markdown(
                 f"""
 <div class="hero">
-  <div class="hero-title">Para-athletes — growth story</div>
+  <div class="hero-title">Para-athletes — 2024 → 2025 growth</div>
   <div class="hero-big">{fmt_int(s25["participants"])} participants (2025)</div>
+  <div class="hero-sub">{fmt_change_count(int(s24["participants"]), int(s25["participants"]), 2024)}</div>
   <div class="hero-grid">
+    <div class="hero-chip">
+      <div class="hero-chip-label">2024 → 2025</div>
+      <div class="hero-chip-value">{fmt_int(s24["participants"])} → {fmt_int(s25["participants"])}</div>
+    </div>
     <div class="hero-chip">
       <div class="hero-chip-label">Division launched</div>
       <div class="hero-chip-value">2024</div>
-    </div>
-    <div class="hero-chip">
-      <div class="hero-chip-label">Distance</div>
-      <div class="hero-chip-value">2.5K</div>
     </div>
   </div>
 </div>
@@ -923,18 +875,8 @@ with tab_para:
                 unsafe_allow_html=True,
             )
 
-            st.success(
-                f"Para participation increased from **{s24['participants']}** (2024) to **{s25['participants']}** (2025). "
-                f"That’s **{d_part:+d}** participants (**{growth:.0f}%** growth)."
-            )
-        else:
-            st.info("Para insights are focused on **2024 → 2025** (the division started in 2024).")
-
         st.divider()
 
-        # =========================
-        # Participation by disability (2024–2025)
-        # =========================
         st.subheader("Participation by disability (2024–2025)")
 
         d = (
@@ -962,57 +904,32 @@ with tab_para:
 
         st.divider()
 
-        # =========================
-        # NEW: Disability growth 2024 -> 2025
-        # =========================
         st.subheader("Disability growth (2025 vs 2024)")
 
         if 2024 in para_years and 2025 in para_years:
             c24 = para_fin_2425[para_fin_2425["event_year"].eq(2024)].groupby("disability").size().reset_index(name="2024")
             c25 = para_fin_2425[para_fin_2425["event_year"].eq(2025)].groupby("disability").size().reset_index(name="2025")
             dg = c25.merge(c24, on="disability", how="outer").fillna(0)
-            dg["Δ"] = dg["2025"] - dg["2024"]
-            dg = dg.sort_values("Δ", ascending=False)
+            dg["Change"] = dg["2025"] - dg["2024"]
+            dg = dg.sort_values("Change", ascending=False)
+
+            dg["label"] = dg["Change"].apply(lambda v: f"{v:+.0f}")
 
             fig_dg = px.bar(
                 dg,
-                x="Δ",
+                x="Change",
                 y="disability",
                 orientation="h",
+                text="label",
             )
             fig_dg.update_traces(
-                hovertemplate="<b>%{y}</b><br>Δ Participants: %{x:+.0f}<extra></extra>"
+                textposition="outside",
+                hovertemplate="<b>%{y}</b><br>2024: %{customdata[0]:.0f}<br>2025: %{customdata[1]:.0f}<br>Change: %{x:+.0f}<extra></extra>",
+                customdata=np.stack([dg["2024"].values, dg["2025"].values], axis=-1),
             )
-            fig_dg.update_layout(xaxis_title="Change in participants (2025 - 2024)", yaxis_title="Disability")
+            fig_dg.update_layout(xaxis_title="Change in participants (2025 minus 2024)", yaxis_title="Disability")
             style_fig(fig_dg)
             apply_modern_hover(fig_dg)
             st.plotly_chart(fig_dg, width="stretch")
-            st.caption("This highlights which disability categories grew the most in 2025.")
-
         else:
             st.info("This chart requires both 2024 and 2025 para data.")
-
-        st.divider()
-
-        # =========================
-        # Para participation over time (2024–2025)
-        # =========================
-        # st.subheader("Para participation over time")
-
-        # pt = (
-        #     para_fin_2425.groupby("event_year", observed=True)
-        #     .size()
-        #     .reset_index(name="Participants")
-        #     .sort_values("event_year")
-        # )
-        # years_p = sorted([int(y) for y in pt["event_year"].dropna().unique().tolist()])
-
-        # fig_pt = px.line(pt, x="event_year", y="Participants", markers=True)
-        # fig_pt.update_traces(
-        #     hovertemplate="<b>Para-athletes</b><br>Year: %{x}<br>Participants: %{y:,}<extra></extra>"
-        # )
-        # fig_pt.update_layout(xaxis_title="Year", yaxis_title="Participants")
-        # fix_year_axis(fig_pt, years_p)
-        # style_fig(fig_pt)
-        # apply_modern_hover(fig_pt)
-        # st.plotly_chart(fig_pt, width="stretch")
