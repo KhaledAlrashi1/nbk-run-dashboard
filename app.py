@@ -405,7 +405,7 @@ with tab_open:
 
         is_record = (latest_finishers == fin_by_year["Finishers"].max()) if not fin_by_year.empty else False
         # record_text = "🏆 Record year — highest Open finishers across the last four runs." if is_record else "Open finishers snapshot."
-        record_text = "🏆 Record year — highest Open finishers across the last four runs."
+        record_text = "🏆 Record year — highest finishers across the last four runs."
 
 
         hero_chip_1_label = f"{y_prev} → {y_latest}"
