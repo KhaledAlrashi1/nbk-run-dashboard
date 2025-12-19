@@ -997,22 +997,22 @@ with tab_para:
         # =========================
         # Para participation over time (2024–2025)
         # =========================
-        st.subheader("Para participation over time")
+        # st.subheader("Para participation over time")
 
-        pt = (
-            para_fin_2425.groupby("event_year", observed=True)
-            .size()
-            .reset_index(name="Participants")
-            .sort_values("event_year")
-        )
-        years_p = sorted([int(y) for y in pt["event_year"].dropna().unique().tolist()])
+        # pt = (
+        #     para_fin_2425.groupby("event_year", observed=True)
+        #     .size()
+        #     .reset_index(name="Participants")
+        #     .sort_values("event_year")
+        # )
+        # years_p = sorted([int(y) for y in pt["event_year"].dropna().unique().tolist()])
 
-        fig_pt = px.line(pt, x="event_year", y="Participants", markers=True)
-        fig_pt.update_traces(
-            hovertemplate="<b>Para-athletes</b><br>Year: %{x}<br>Participants: %{y:,}<extra></extra>"
-        )
-        fig_pt.update_layout(xaxis_title="Year", yaxis_title="Participants")
-        fix_year_axis(fig_pt, years_p)
-        style_fig(fig_pt)
-        apply_modern_hover(fig_pt)
-        st.plotly_chart(fig_pt, width="stretch")
+        # fig_pt = px.line(pt, x="event_year", y="Participants", markers=True)
+        # fig_pt.update_traces(
+        #     hovertemplate="<b>Para-athletes</b><br>Year: %{x}<br>Participants: %{y:,}<extra></extra>"
+        # )
+        # fig_pt.update_layout(xaxis_title="Year", yaxis_title="Participants")
+        # fix_year_axis(fig_pt, years_p)
+        # style_fig(fig_pt)
+        # apply_modern_hover(fig_pt)
+        # st.plotly_chart(fig_pt, width="stretch")
